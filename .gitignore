@@ -1,0 +1,14 @@
+# Rust
+target/
+Cargo.lock
+
+# Gradle / Android
+build/
+.gradle/
+local.properties
+*.apk
+*.so
+*.dex
+
+# macOS
+.DS_Store

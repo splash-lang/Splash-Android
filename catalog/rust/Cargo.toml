@@ -1,0 +1,15 @@
+[package]
+name = "splash_catalog"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "splash_catalog"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+splash-render = { path = "/Users/yuechen/home/Splash-Makepad/crates/splash-render" }
+jni = "0.21"
+
+[profile.release]
+opt-level = 2

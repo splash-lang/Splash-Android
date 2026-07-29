@@ -1,0 +1,17 @@
+[package]
+name = "splash_android_probe"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "splash_android_probe"
+crate-type = ["cdylib"]
+
+# The real thing: the backend-agnostic Splash renderer core. Depends only on
+# makepad-script (the VM). No makepad-platform / draw / widgets anywhere.
+[dependencies]
+splash-render = { path = "/Users/yuechen/home/Splash-Makepad/crates/splash-render" }
+jni = "0.21"
+
+[profile.release]
+opt-level = 2

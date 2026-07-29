@@ -1,0 +1,4 @@
+<resources>
+    <item name="splash_expanded_h" type="id"/>
+    <item name="splash_collapsed_h" type="id"/>
+</resources>
