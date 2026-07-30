@@ -10,6 +10,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 splash-render = { path = "/Users/yuechen/home/Splash-Makepad/crates/splash-render" }
 jni = "0.21"
+serde_json = "1.0.151"
+ureq = { version = "2", features = ["tls"] }
 
 [profile.release]
 opt-level = 2

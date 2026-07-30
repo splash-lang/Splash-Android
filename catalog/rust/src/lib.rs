@@ -20,6 +20,7 @@ use jni::JNIEnv;
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
+mod plan;
 mod screens;
 
 // ---------------------------------------------------------------- state ----
@@ -40,17 +41,17 @@ fn state_get(k: &str) -> String {
 
 // ----------------------------------------------------------------- node ----
 
-#[derive(Debug)]
-enum Val {
+#[derive(Debug, Clone)]
+pub(crate) enum Val {
     F(f64),
     S(String),
 }
 
-#[derive(Debug)]
-struct Node {
-    kind: String,
-    attrs: Vec<(String, Val)>,
-    children: Vec<Node>,
+#[derive(Debug, Clone)]
+pub(crate) struct Node {
+    pub kind: String,
+    pub attrs: Vec<(String, Val)>,
+    pub children: Vec<Node>,
 }
 
 /// Every attribute name the DSL may use. LiveId keys are one-way hashes, so the
@@ -358,6 +359,39 @@ pub extern "system" fn Java_dev_splash_catalog_Native_render<'l>(
     let buf = render(&r);
     if buf.is_empty() {
         return JObject::null();
+    }
+    let mut g = BUF.lock().unwrap();
+    *g = Some(buf);
+    let b = g.as_ref().unwrap();
+    match unsafe { env.new_direct_byte_buffer(b.as_ptr() as *mut u8, b.len()) } {
+        Ok(v) => v.into(),
+        Err(_) => JObject::null(),
+    }
+}
+
+
+/// Render a semantic PLAN (typed JSON from the generating model) to the flat node
+/// buffer. The DSL is not involved on this path at all: `plan::lower` builds the node
+/// tree directly from the plan.
+///
+/// This is the portability seam. octos-one lowers the SAME plan JSON to makepad Splash
+/// DSL; this lowers it to native Android views. If one plan drives both, the plan is
+/// genuinely backend-agnostic and the per-backend cost is a lowering table.
+///
+/// Never returns null for a bad plan — `plan::lower` renders a visible rejection
+/// instead, because a blank screen is indistinguishable from a crash.
+#[no_mangle]
+pub extern "system" fn Java_dev_splash_catalog_Native_renderPlan<'l>(
+    mut env: JNIEnv<'l>,
+    _c: JClass<'l>,
+    plan: JString<'l>,
+) -> JObject<'l> {
+    let json = jstr(&mut env, &plan);
+    let root = plan::lower(&json);
+    let buf = encode(&root);
+    let degraded = plan::DEGRADED.lock().unwrap().join(" | ");
+    if !degraded.is_empty() {
+        *DIAG.lock().unwrap() = Some(format!("DEGRADED {degraded}"));
     }
     let mut g = BUF.lock().unwrap();
     *g = Some(buf);

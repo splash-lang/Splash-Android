@@ -1,0 +1,11 @@
+{
+  "plan": "weather",
+  "locale": "zh",
+  "place": { "query": "上海" },
+  "photo": "shanghai skyline",
+  "sections": [
+    { "block": "CurrentConditions" },
+    { "block": "Forecast", "args": { "days": 7 } },
+    { "block": "Details", "args": { "tiles": ["uv", "humidity", "wind"] } }
+  ]
+}

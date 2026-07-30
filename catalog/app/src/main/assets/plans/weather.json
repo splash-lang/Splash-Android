@@ -1,0 +1,13 @@
+{
+  "plan": "weather",
+  "locale": "en",
+  "place": { "query": "Kyoto" },
+  "photo": "kyoto city cloudy sky",
+  "sections": [
+    { "block": "CurrentConditions" },
+    { "block": "Forecast", "args": { "days": 7 } },
+    { "block": "AirQualityField" },
+    { "block": "SunMoon" },
+    { "block": "Details", "args": { "tiles": ["uv", "humidity", "wind"] } }
+  ]
+}

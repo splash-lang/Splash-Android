@@ -1,0 +1,9 @@
+{
+  "plan": "news",
+  "locale": "en",
+  "sections": [
+    { "block": "Masthead", "args": { "title": "Top Stories", "label": "HACKER NEWS" } },
+    { "block": "LeadStory" },
+    { "block": "StoryFeed", "args": { "count": 6, "label": "LATEST" } }
+  ]
+}

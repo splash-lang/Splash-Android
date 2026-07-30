@@ -176,6 +176,50 @@ public class MainActivity extends AppCompatActivity implements Builder.Env {
 
         for (String[] p : routes) if (p[0].equals(r)) toolbar.setTitle(p[1]);
 
+        // A `plan/<name>` route renders a semantic PLAN instead of a DSL route: the
+        // same typed JSON octos-one's LLM emits, lowered here straight to nodes. This
+        // is where "one plan, many native backends" is actually exercised.
+        //
+        // Lowering a plan performs LIVE HTTP — the backend has no `sys.*` helpers, so
+        // it resolves the data itself. That cannot run on the UI thread, so it happens
+        // on a worker and the view build is posted back.
+        if (r.startsWith("plan/")) {
+            String json = readAsset("plans/" + r.substring(5) + ".json");
+            AppCompatTextView loading = new AppCompatTextView(this);
+            loading.setPadding(48, 48, 48, 48);
+            loading.setText("Resolving live data\u2026");
+            content.addView(loading);
+            new Thread(() -> {
+                ByteBuffer pb = Native.renderPlan(json);
+                content.post(() -> {
+                    content.removeAllViews();
+                    if (pb == null) {
+                        AppCompatTextView t = new AppCompatTextView(this);
+                        t.setPadding(48, 48, 48, 48);
+                        t.setText("plan render failed\n\n" + Native.diag());
+                        content.addView(t);
+                        return;
+                    }
+                    try {
+                        builder.transitionHosts.clear();
+                        View v = builder.build(Node.decode(pb));
+                        if (v != null) {
+                            ScrollView sv = new ScrollView(this);
+                            sv.addView(v);
+                            content.addView(sv, new FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT));
+                        }
+                        String d = Native.diag();
+                        if (d != null && d.startsWith("DEGRADED")) Log.i(TAG, d);
+                    } catch (Throwable t) {
+                        Log.e(TAG, "plan build failed", t);
+                    }
+                });
+            }, "plan-lower").start();
+            return;
+        }
+
         ByteBuffer bb = Native.render(r);
         if (bb == null) {
             AppCompatTextView t = new AppCompatTextView(this);
@@ -200,6 +244,31 @@ public class MainActivity extends AppCompatActivity implements Builder.Env {
         }
     }
 
+    /** Read a bundled asset as UTF-8, or "" if it is missing. */
+    String readAsset(String path) {
+        try (java.io.InputStream in = getAssets().open(path)) {
+            byte[] b = new byte[in.available()];
+            int n = in.read(b);
+            return n <= 0 ? "" : new String(b, 0, n, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Throwable t) {
+            Log.e(TAG, "asset " + path + " missing", t);
+            return "";
+        }
+    }
+
+    /**
+     * Semantic-PLAN routes, listed first on the ToC.
+     *
+     * These render the SAME typed JSON octos-one's LLM emits — no Splash DSL involved.
+     * Everything below them in the list is DSL-authored, so the two paths sit side by
+     * side in one build.
+     */
+    static final String[][] PLAN_ROUTES = {
+        {"plan/weather", "PLAN \u00b7 Weather (Kyoto)"},
+        {"plan/weather-zh", "PLAN \u00b7 \u5929\u6c14 (\u4e0a\u6d77)"},
+        {"plan/news", "PLAN \u00b7 News"},
+    };
+
     View buildToc() {
         ScrollView sc = new ScrollView(this);
         LinearLayout col = new LinearLayout(this);
@@ -221,6 +290,23 @@ public class MainActivity extends AppCompatActivity implements Builder.Env {
         card.addView(list);
         col.addView(card, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        for (String[] p : PLAN_ROUTES) {
+            Node pf = new Node();
+            pf.kind = "listitem";
+            pf.attrs.put("text", p[1]);
+            pf.attrs.put("icon2", "arrow_forward");
+            // `tap` is what makes the built row clickable — omitting it produced a row
+            // that looked identical and did nothing.
+            pf.attrs.put("tap", 1.0);
+            pf.attrs.put("route", p[0]);
+            View row = builder.build(pf);
+            if (row != null) {
+                row.setOnClickListener(v -> navigate(p[0]));
+                list.addView(row);
+            }
+        }
+        list.addView(new MaterialDivider(this));
 
         for (int i = 0; i < routes.size(); i++) {
             String[] p = routes.get(i);
